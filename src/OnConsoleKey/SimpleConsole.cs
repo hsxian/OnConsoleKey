@@ -1,31 +1,36 @@
-﻿using System.Text;
+﻿using System.Threading.Tasks;
+using System.Text;
 using System.Collections.Generic;
 using System.Linq;
 using System;
-using Console = Colorful.Console;
-using System.Drawing;
 
 namespace OnConsoleKey
 {
     public class SimpleConsole
     {
         public string Prompts { get; set; }
-        public Color PromptsColor { get; set; } = Color.White;
+        public ConsoleColor PromptsColor { get; set; } = ConsoleColor.White;
         public event Action<SimpleConsole, ConsoleKeyInfo> OnConsoleKeyInfo;
-        public Func<string, IEnumerable<string>> AutoCompleteHandel { get; set; }
+        public Func<string, Task<IEnumerable<string>>> AutoCompleteHandle { get; set; }
+        public Func<char, byte> CursorCountFromCharactersHandle { get; set; }
         public ConsoleKeyInfo LastKey { get; private set; }
         public StringBuilder Buffer { get; private set; }
         private int _currentIdx = 0;
         private int _tabCount = 0;
         private string _tabLine = "";
+        private List<string> _tabResult;
         public SimpleConsole()
         {
             Buffer = new StringBuilder();
             Console.CancelKeyPress += (sen, arg) => { if (LastKey.Key != ConsoleKey.Enter) Console.WriteLine(); };
         }
-        public void Start()
+        public async void Start()
         {
-            Console.Write(Prompts, PromptsColor);
+            if (CursorCountFromCharactersHandle == null)
+            {
+                throw new ArgumentNullException("CursorCountFromCharactersHandle");
+            }
+            WriteWithColor(Prompts, PromptsColor);
             do
             {
                 LastKey = Console.ReadKey(true);
@@ -33,6 +38,7 @@ namespace OnConsoleKey
                 if (LastKey.Key != ConsoleKey.Tab)
                 {
                     _tabCount = 0;
+                    _tabResult = null;
                 }
 
                 switch (LastKey.Key)
@@ -44,6 +50,7 @@ namespace OnConsoleKey
                         if (RemoveAt(_currentIdx)) _currentIdx--;
                         break;
                     case ConsoleKey.Enter:
+                        OnConsoleKeyInfo?.Invoke(this, LastKey);
                         Enter();
                         break;
                     case ConsoleKey.LeftArrow:
@@ -53,15 +60,18 @@ namespace OnConsoleKey
                         if (MoveOffset(_currentIdx, 1)) _currentIdx++;
                         break;
                     case ConsoleKey.Tab:
-                        Tab();
+                        await Tab();
                         break;
                     default:
                         if (Insert(_currentIdx, LastKey.KeyChar)) _currentIdx++;
                         break;
                 }
 
-                OnConsoleKeyInfo?.Invoke(this, LastKey);
 
+                if (LastKey.Key != ConsoleKey.Enter)
+                {
+                    OnConsoleKeyInfo?.Invoke(this, LastKey);
+                }
             }
             while (true);
         }
@@ -79,13 +89,7 @@ namespace OnConsoleKey
         }
         private byte ChartWidthCount(char c)
         {
-            var count = Console.OutputEncoding.GetByteCount(new[] { c });
-            byte w = 1;
-            if (count > 2)
-            {
-                w = 2;
-            }
-            return w;
+            return CursorCountFromCharactersHandle(c);
         }
         private int StringWidthCount(string str)
         {
@@ -182,20 +186,21 @@ namespace OnConsoleKey
         private void Enter()
         {
             MoveOffset(_currentIdx, Buffer.Length - _currentIdx);
-            Console.Write($"\n{Prompts}", PromptsColor);
+            WriteWithColor($"\n{Prompts}", PromptsColor);
             Buffer.Clear();
             _currentIdx = 0;
         }
-        private void Tab()
+        private async Task Tab()
         {
             if (_tabCount == 0)
             {
                 _tabLine = Buffer.ToString();
+                _tabResult = (await AutoCompleteHandle?.Invoke(_tabLine))?.ToList();
             }
-            var autos = AutoCompleteHandel?.Invoke(_tabLine);
-            if (autos?.Any() == true)
+
+            if (_tabResult?.Any() == true)
             {
-                var ac = autos.Skip(_tabCount++ % autos.Count()).First();
+                var ac = _tabResult[_tabCount++ % _tabResult.Count];
                 Clear();
                 _currentIdx = ac.Length;
                 AddKey(ac);
@@ -204,6 +209,13 @@ namespace OnConsoleKey
         private int BufferWidthCount()
         {
             return StringWidthCount(Buffer.ToString());
+        }
+        private void WriteWithColor(string str, ConsoleColor color)
+        {
+            var old = Console.ForegroundColor;
+            Console.ForegroundColor = color;
+            Console.Write(str);
+            Console.ForegroundColor = old;
         }
     }
 }

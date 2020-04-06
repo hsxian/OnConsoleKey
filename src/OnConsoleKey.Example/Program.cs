@@ -1,4 +1,4 @@
-﻿using System.Drawing;
+﻿using System.Threading.Tasks;
 using System;
 
 namespace OnConsoleKey.Example
@@ -9,22 +9,21 @@ namespace OnConsoleKey.Example
         {
             var sc = new SimpleConsole();
             sc.Prompts = "shell> ";
-            sc.PromptsColor = Color.Red;
-            sc.AutoCompleteHandel = str =>
-            {
-                return new[]
-                {
+            sc.PromptsColor = ConsoleColor.Red;
+            sc.CursorCountFromCharactersHandle = c => c > 128 ? (byte)2 : (byte)1;
+            sc.AutoCompleteHandle = async str =>
+             {
+                 return await Task.FromResult(new[]
+                 {
                     "测试自动补全",
                     "Test auto-replenishment",
-                    "自動補完のテスト",
-                    "Тест автоматическое пополнение",
-                };
-            };
+                 });
+             };
             sc.OnConsoleKeyInfo += (sen, key) =>
             {
                 if (key.Key == ConsoleKey.Enter)
                 {
-
+                    Console.Write($"\ntype result :{sc.Buffer}");
                 }
             };
             sc.Start();
