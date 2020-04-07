@@ -7,7 +7,14 @@ namespace OnConsoleKey.Example
     {
         static void Main(string[] args)
         {
+            var historyFile = "history.txt";
             var sc = new SimpleConsole();
+            sc.Histories.RestoreFromFile(historyFile);
+            Console.CancelKeyPress += (sen, arg) =>
+            {
+                Console.WriteLine("exit...");
+                sc.Histories.SaveToFile(historyFile);
+            };
             sc.Prompts = "shell> ";
             sc.PromptsColor = ConsoleColor.Red;
             sc.CursorCountFromCharactersHandle = c => c > 128 ? (byte)2 : (byte)1;

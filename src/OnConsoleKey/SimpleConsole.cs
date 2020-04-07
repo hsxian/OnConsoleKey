@@ -19,8 +19,17 @@ namespace OnConsoleKey
         private int _tabCount = 0;
         private string _tabLine = "";
         private List<string> _tabResult;
+        public HistoryHelper Histories { get; private set; }
+        public List<ConsoleKey> ExceptiveConsoleKeys { get; private set; } = new List<ConsoleKey>
+        {
+            ConsoleKey.Enter,
+            ConsoleKey.UpArrow,
+            ConsoleKey.DownArrow,
+        };
+
         public SimpleConsole()
         {
+            Histories = new HistoryHelper();
             Buffer = new StringBuilder();
             Console.CancelKeyPress += (sen, arg) => { if (LastKey.Key != ConsoleKey.Enter) Console.WriteLine(); };
         }
@@ -50,6 +59,7 @@ namespace OnConsoleKey
                         if (RemoveAt(_currentIdx)) _currentIdx--;
                         break;
                     case ConsoleKey.Enter:
+                        Histories.Add(Buffer.ToString());
                         OnConsoleKeyInfo?.Invoke(this, LastKey);
                         Enter();
                         break;
@@ -59,6 +69,12 @@ namespace OnConsoleKey
                     case ConsoleKey.RightArrow:
                         if (MoveOffset(_currentIdx, 1)) _currentIdx++;
                         break;
+                    case ConsoleKey.UpArrow:
+                        SetFromHistory(-1);
+                        break;
+                    case ConsoleKey.DownArrow:
+                        SetFromHistory(1);
+                        break;
                     case ConsoleKey.Tab:
                         await Tab();
                         break;
@@ -67,8 +83,7 @@ namespace OnConsoleKey
                         break;
                 }
 
-
-                if (LastKey.Key != ConsoleKey.Enter)
+                if (ExceptiveConsoleKeys.Contains(LastKey.Key) == false)
                 {
                     OnConsoleKeyInfo?.Invoke(this, LastKey);
                 }
@@ -205,6 +220,28 @@ namespace OnConsoleKey
                 _currentIdx = ac.Length;
                 AddKey(ac);
             }
+        }
+        private void SetFromHistory(int idxOffset)
+        {
+            var line = "";
+            if (idxOffset > 0)
+            {
+                for (int i = 0; i < idxOffset; i++)
+                {
+                    line = Histories.Next();
+                }
+            }
+            else
+            {
+                for (int i = 0; i > idxOffset; i--)
+                {
+                    line = Histories.Previous();
+                }
+            }
+            if (string.IsNullOrWhiteSpace(line)) return;
+            Clear();
+            _currentIdx = line.Length;
+            AddKey(line);
         }
         private int BufferWidthCount()
         {

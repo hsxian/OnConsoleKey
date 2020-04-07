@@ -2,7 +2,13 @@
     <PropertyGroup>
         <TargetFramework>netstandard2.0</TargetFramework>
         <PackageId>OnConsoleKey</PackageId>
-        <Version>0.0.2</Version>
+        <Version>0.0.3</Version>
         <Authors>hsxian</Authors>
+        <owners>hsxian</owners>
+        <licenseUrl>../../LICENSE</licenseUrl>
+        <projectUrl>https://github.com/hsxian/OnConsoleKey</projectUrl>
+        <description>A console that is a bit like the operating habits of Ubuntu terminal users. Features: Press the tab key to automatically complete and record history.</description>
+        <releaseNotes>Add history function.</releaseNotes>
+        <copyright>Copyright 2020</copyright>
     </PropertyGroup>
 </Project>
